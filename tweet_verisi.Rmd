@@ -1,0 +1,216 @@
+---
+title: "Tweet verisi kazıma alıştırmaları"
+output: html_notebook
+---
+
+#####**by [Sadettin Demirel](https://twitter.com/demirelsadettin)**
+
+Bu pratikte R progralama dilini kullanarak tweet verilerini çekip analiz edeceğiz.Bunun için cihazınızda R ve Rstudio adlı yazılımları yüklemeniz gereklidir. Kurulumu tamamladıktan sonra paketleri yükleme ve çağırma aşamalarına geçiniz.
+
+##### 1.Paketleri Yükleme ve çağırma
+
+Aşağıdaki paketler veriyi çekmemizde ve analiz etmemizde bize yardımcı olacak. aşağıdaki kodlardan önce her üç paketi de install.packages("") komutu ile yüklemeniz gereklidir.
+Sonrasında aşağıda olduğu gibi paketleri çağırabiliriz
+
+```{r}
+library(tidyverse)
+library(rtweet)
+library(lubridate)
+library(stopwords)
+library(tidytext)
+```
+
+##### 2.API'ye erişim
+
+API'ye erişim sağlamak için Twitter geliiştirici hesabı ve uygulama oluşturmalısınız.[Detaylar](https://docs.google.com/presentation/d/1DcD-32Aw_XebkoLAuWaGELkdBfrtJY9tLH3BtGmh3lI/edit?usp=sharing) Twitter geliştici hesabını oluşturduktan sonra ve anahtar şifreleri elde ettikten sonra aşağıdaki kodla API'ye erişim sağlıyoruz.
+```{r}
+twitter_token <- create_token(app = appname, consumer_key = key,consumer_secret = secret)
+```
+
+##### 3. Tweet verisi çekelim
+
+**a. Sağlık Bakanlığı Twitter Hesabı**
+
+Sağlık Bakanlığı'nın paylaştığı son 1000 tweete bakalım
+
+```{r}
+sb <- get_timeline("saglikbakanligi", n=1000)
+```
+1000 tweeti çektik ama bize gerekli olanları filtreleyelim
+
+```{r}
+sb_ozel <- sb %>% select(3,4,5,12,13,14,15,29,54)
+```
+
+**Etkileşim Analizi**
+
+```{r}
+sb_ozel %>% mutate(date = date(created_at))
+```
+
+Öncelikle günlük olarak tweetleri sınıflandıralım.
+```{r}
+sb_ozel %>% mutate(date = date(created_at))
+```
+Tabloda retweet ve beğenilme sayılarına bakalım
+
+```{r}
+sb_ozel %>% select(screen_name, favorite_count, retweet_count)%>% arrange(desc(favorite_count,retweet_count))
+```
+
+```{r}
+sb_ozel %>% select(screen_name, favorite_count, retweet_count)%>% arrange(desc(favorite_count,retweet_count))
+```
+
+Görselleştirelim
+```{r}
+sb_ozel %>% mutate(date = date(created_at)) %>% ggplot(aes(date, retweet_count))+geom_line()
+```
+
+```{r}
+sb_ozel %>% mutate(date = date(created_at)) %>% ggplot(aes(date, retweet_count))+geom_line()
+```
+
+
+**Kullanılan Etiket analizi**
+
+Etiket analiz biraz meşakkatli. Kullanıcılar birden fazla etiket kullandığı için Twitter bize veriyi liste olarak sunuyor. Doğal olarak bunu tablo formatına çevirmemiz için aşağıdaki kodu kullanacağız.
+```{r}
+# bir nevi veriyi istediğimiz formata getirmek için bir hack kodda diyebiliriz buna
+sb_etiket <- data.frame(matrix(unlist(sb_ozel$hashtags), nrow = 1051, byrow = TRUE),stringsAsFactors = FALSE)
+
+#sütun ismini değiştiriyoruz
+colnames(sb_etiket) <- c("etiket")
+
+#en çok hangi etiketler kullanılmış.
+sb_etiket %>% count(etiket, sort = TRUE)
+```
+
+```{r}
+# bir nevi veriyi istediğimiz formata getirmek için bir hack kodda diyebiliriz buna
+sb_etiket <- data.frame(matrix(unlist(sb_ozel$hashtags), nrow = 1051, byrow = TRUE),stringsAsFactors = FALSE)
+
+#sütun ismini değiştiriyoruz
+colnames(sb_etiket) <- c("etiket")
+
+#en çok hangi etiketler kullanılmış.
+sb_etiket %>% count(etiket, sort = TRUE)
+
+```
+
+
+**Retweet analizi**
+
+Sağlık Bakanlığı en çok **Dr.Fahrettin Koca'yı** retweet etmiş
+```{r}
+sb_ozel %>% count(retweet_name, sort = TRUE)
+```
+
+```{r}
+sb_ozel %>% count(retweet_name, sort = TRUE)
+```
+
+
+**Metin analizi**
+
+Metin verisini seçelim
+```{r}
+sb_metin <- sb_ozel %>% select(text)
+```
+
+```{r}
+tweet_kelime <- sb_metin %>%
+  filter(!str_detect(text, '^"')) %>%
+  mutate(text = str_replace_all(text, "https://t.co/[A-Za-z\\d]+|&amp;", "")) %>%
+  unnest_tokens(word, text, token = "tweets", to_lower = TRUE) %>%
+  filter(!word %in% stopwords::stopwords("tr", source = "stopwords-iso"),
+         str_detect(word, "[a-z]"))
+```
+
+
+```{r}
+tweet_kelime %>% count(word, sort = TRUE)
+```
+
+```{r}
+tweet_kelime %>% count(word, sort = TRUE)
+```
+
+
+**b. #Seçim2019 Etiket Analizi**
+
+En çok tweet atan hesap hangisi
+
+```{r}
+secim <- search_tweets("#seçim2019", n = 10000)
+secim %>% count(screen_name, sort = TRUE)
+```
+
+```{r}
+secim <- search_tweets("#seçim2019", n = 10000)
+secim %>% count(screen_name, sort = TRUE)
+```
+
+**Diğer kullanılan Etiketler**
+
+Başka hangi etiketler kullanılıyor.
+```{r}
+# bir nevi veriyi istediğimiz formata getirmek için bir hack kodda diyebiliriz buna
+secim_etiket <- data.frame(matrix(unlist(secim$hashtags), nrow = 13670, byrow = TRUE),stringsAsFactors = FALSE)
+
+#sütun ismini değiştiriyoruz
+colnames(secim_etiket) <- c("etiket")
+
+#en çok hangi etiketler kullanılmış.
+secim_etiket %>% count(etiket, sort = TRUE) %>% na.omit()
+```
+
+
+```{r}
+# bir nevi veriyi istediğimiz formata getirmek için bir hack kodda diyebiliriz buna
+secim_etiket <- data.frame(matrix(unlist(secim$hashtags), nrow = 13670, byrow = TRUE),stringsAsFactors = FALSE)
+
+#sütun ismini değiştiriyoruz
+colnames(secim_etiket) <- c("etiket")
+
+#en çok hangi etiketler kullanılmış.
+secim_etiket %>% count(etiket, sort = TRUE) %>% na.omit()
+```
+
+**Ayrıca en çok kullanılan kelimelere bakalım**
+
+
+```{r}
+secim_tweet <- select(secim,text) %>%
+  filter(!str_detect(text, '^"')) %>%
+  mutate(text = str_replace_all(text, "https://t.co/[A-Za-z\\d]+|&amp;", "")) %>%
+  unnest_tokens(word, text, token = "tweets", to_lower = TRUE) %>%
+  filter(!word %in% stopwords::stopwords("tr", source = "stopwords-iso"),
+         str_detect(word, "[a-z]"))
+
+```
+
+```{r}
+secim_tweet %>% count(word, sort = TRUE)
+```
+
+```{r}
+secim_tweet %>% count(word, sort = TRUE)
+```
+
+**Son olarak verileri dışarı aktaralım**
+
+```{r}
+write_csv(secim_tweet, "~/desktop/secimtweet.csv")
+```
+
+
+##### 4. Faydalı kaynaklar
+
+* [Rtweet paketi kodları](https://rtweet.info/index.html)
+* [R üzerine yazılarım](https://www.newslabturkey.org/author/sadettindemirel/)
+* [Tweet verisi üzerine detaylı yazım](https://www.newslabturkey.org/r-ile-tweet-verisi-nasil-cekilir-ve-analiz-edilir/)
+* [İstanbul ve Ankara adayları analizim](https://twitter.com/demirelsadettin/status/1112058333266169856) 
+* [Üstteki analizin kodları](https://sadettindemirel.github.io/mayoral_candidates_tweets/analysis-of-tweets.html)
+* [Veri Okuryazarlığı Derneği (VOYD)](https://www.voyd.org.tr)
+* [Dernek olarak her hafta yayınladığımız Veri Bülteni](https://twitter.com/voydorg/status/1083695779141861376)
